@@ -4,8 +4,9 @@
 #include <vector>
 #include <math.h>
 #include "biodynamo.h"
-#include "math_util.h"
-#include "substance_initializers.h"
+#include "../../biodynamo/src/core/substance_initializers.h"
+//#include "math_util.h"
+//#include "substance_initializers.h"
 
 /*
 MODIFIED - to allow this to run in the latest BDM
@@ -55,29 +56,25 @@ MODIFIED
  //template <typename Function, typename TResourceManager = ResourceManager<>>
  template <typename Function, typename TSimulation = Simulation<>>
  static void MyCellCreator(double min, double max, int num_cells, Function cell_builder) {
-  //auto rm = TResourceManager::Get();
-  auto* sim = TSimulation::GetActive();
-  auto* rm = sim->GetResourceManager();
-  //EDIT: gTRandom no longer in use
-  auto* random = sim->GetRandom();
-  // Determine simulation object type which is returned by the cell_builder
-  using FunctionReturnType = decltype(cell_builder({0, 0, 0}));
+   auto* sim = TSimulation::GetActive();
+   auto* rm = sim->GetResourceManager();
+   auto* random = sim->GetRandom();
+   // Determine simulation object type which is returned by the cell_builder
+   using FunctionReturnType = decltype(cell_builder({0, 0, 0}));
 
-  auto container = rm->template Get<FunctionReturnType>();
-  container->reserve(num_cells);
+   rm->template Reserve<FunctionReturnType>(num_cells);
+   // so cells will be created at random only on the x and y axis
+   // z axis is used to move cells to final resting position
+   for (int i = 0; i < num_cells; i++) {
+     double x = random->Uniform(min, max);
+     double y = random->Uniform(min, max);
+     //stop cells from moving in the z axis when generated
+     double z = 0;
+     auto new_simulation_object = cell_builder({x, y, z});
+     rm->push_back(new_simulation_object);
+   }
+ }
 
-  // so cells will be created at random only on the x and y axis
-  // z axis is used to move cells to final resting position
-  for (int i = 0; i < num_cells; i++) {
-    double x = random->Uniform(min, max);
-    double y = random->Uniform(min, max);
-    //stop cells from moving in the z axis when generated
-    double z = 0;
-    auto new_simulation_object = cell_builder({x, y, z});
-    container->push_back(new_simulation_object);
-  }
-  container->Commit();
-}
 
 /*
   BiologyModules for each cell type - specifies the behaviours of each cell type
@@ -498,8 +495,7 @@ inline int Simulate(int argc, const char** argv) {
     ModelInitializer::DefineSubstance(kSubstance, "kSubstance", 0.5, 0.1, 4);
     //initialise substance: enum of substance, name, function type used
     //mean value of 200 along the z-axis, and a variance of 100
-    ModelInitializer::InitializeSubstance(kSubstance, "kSubstance",
-                                            GaussianBand(200, 100, Axis::kZAxis));
+    ModelInitializer::InitializeSubstance(kSubstance, GaussianBand(200, 100, Axis::kZAxis));
 
 
   //link to paraview to show visualization
